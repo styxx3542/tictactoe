@@ -1,0 +1,29 @@
+syntax = "proto3";
+option go_package = "github.com/styxx3542/tictactoe";
+package tictactoe;
+
+// Define the Tic-Tac-Toe service
+service TicTacToeService {
+    // Method for making a move in the game
+    rpc MakeMove(MoveRequest) returns (MoveResponse);
+}
+
+// Request message for making a move
+message MoveRequest {
+    // Player ID making the move (e.g., 'X' or 'O')
+    string player_id = 1;
+    // Row of the move (0-indexed)
+    int32 row = 2;
+    // Column of the move (0-indexed)
+    int32 column = 3;
+}
+
+// Response message for making a move
+message MoveResponse {
+    // Indicates whether the move was successful
+    bool success = 1;
+    // Message providing additional information about the move result
+    string message = 2;
+    // Updated game board state after the move (optional)
+    repeated string board_state = 3;
+}
