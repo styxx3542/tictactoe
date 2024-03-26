@@ -3,7 +3,8 @@ module github.com/styxx3542/tictactoe
 go 1.22.0
 
 require (
-	google.golang.org/grpc v1.62.0
+	github.com/google/uuid v1.6.0
+	google.golang.org/grpc v1.62.1
 	google.golang.org/protobuf v1.32.0
 )
 

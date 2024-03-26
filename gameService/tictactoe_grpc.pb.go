@@ -22,8 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TicTacToeServiceClient interface {
-	// Method for making a move in the game
-	MakeMove(ctx context.Context, in *MoveRequest, opts ...grpc.CallOption) (*MoveResponse, error)
+	// Bi-directional streaming RPC for playing the game
+	PlayStream(ctx context.Context, opts ...grpc.CallOption) (TicTacToeService_PlayStreamClient, error)
 }
 
 type ticTacToeServiceClient struct {
@@ -34,21 +34,43 @@ func NewTicTacToeServiceClient(cc grpc.ClientConnInterface) TicTacToeServiceClie
 	return &ticTacToeServiceClient{cc}
 }
 
-func (c *ticTacToeServiceClient) MakeMove(ctx context.Context, in *MoveRequest, opts ...grpc.CallOption) (*MoveResponse, error) {
-	out := new(MoveResponse)
-	err := c.cc.Invoke(ctx, "/tictactoe.TicTacToeService/MakeMove", in, out, opts...)
+func (c *ticTacToeServiceClient) PlayStream(ctx context.Context, opts ...grpc.CallOption) (TicTacToeService_PlayStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &TicTacToeService_ServiceDesc.Streams[0], "/tictactoe.TicTacToeService/PlayStream", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &ticTacToeServicePlayStreamClient{stream}
+	return x, nil
+}
+
+type TicTacToeService_PlayStreamClient interface {
+	Send(*PlayStreamRequest) error
+	Recv() (*PlayStreamResponse, error)
+	grpc.ClientStream
+}
+
+type ticTacToeServicePlayStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *ticTacToeServicePlayStreamClient) Send(m *PlayStreamRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *ticTacToeServicePlayStreamClient) Recv() (*PlayStreamResponse, error) {
+	m := new(PlayStreamResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // TicTacToeServiceServer is the server API for TicTacToeService service.
 // All implementations must embed UnimplementedTicTacToeServiceServer
 // for forward compatibility
 type TicTacToeServiceServer interface {
-	// Method for making a move in the game
-	MakeMove(context.Context, *MoveRequest) (*MoveResponse, error)
+	// Bi-directional streaming RPC for playing the game
+	PlayStream(TicTacToeService_PlayStreamServer) error
 	mustEmbedUnimplementedTicTacToeServiceServer()
 }
 
@@ -56,8 +78,8 @@ type TicTacToeServiceServer interface {
 type UnimplementedTicTacToeServiceServer struct {
 }
 
-func (UnimplementedTicTacToeServiceServer) MakeMove(context.Context, *MoveRequest) (*MoveResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MakeMove not implemented")
+func (UnimplementedTicTacToeServiceServer) PlayStream(TicTacToeService_PlayStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method PlayStream not implemented")
 }
 func (UnimplementedTicTacToeServiceServer) mustEmbedUnimplementedTicTacToeServiceServer() {}
 
@@ -72,22 +94,30 @@ func RegisterTicTacToeServiceServer(s grpc.ServiceRegistrar, srv TicTacToeServic
 	s.RegisterService(&TicTacToeService_ServiceDesc, srv)
 }
 
-func _TicTacToeService_MakeMove_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MoveRequest)
-	if err := dec(in); err != nil {
+func _TicTacToeService_PlayStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(TicTacToeServiceServer).PlayStream(&ticTacToeServicePlayStreamServer{stream})
+}
+
+type TicTacToeService_PlayStreamServer interface {
+	Send(*PlayStreamResponse) error
+	Recv() (*PlayStreamRequest, error)
+	grpc.ServerStream
+}
+
+type ticTacToeServicePlayStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *ticTacToeServicePlayStreamServer) Send(m *PlayStreamResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *ticTacToeServicePlayStreamServer) Recv() (*PlayStreamRequest, error) {
+	m := new(PlayStreamRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(TicTacToeServiceServer).MakeMove(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/tictactoe.TicTacToeService/MakeMove",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TicTacToeServiceServer).MakeMove(ctx, req.(*MoveRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
 // TicTacToeService_ServiceDesc is the grpc.ServiceDesc for TicTacToeService service.
@@ -96,12 +126,14 @@ func _TicTacToeService_MakeMove_Handler(srv interface{}, ctx context.Context, de
 var TicTacToeService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "tictactoe.TicTacToeService",
 	HandlerType: (*TicTacToeServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "MakeMove",
-			Handler:    _TicTacToeService_MakeMove_Handler,
+			StreamName:    "PlayStream",
+			Handler:       _TicTacToeService_PlayStream_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "tictactoe.proto",
 }

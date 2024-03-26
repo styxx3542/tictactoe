@@ -4,60 +4,74 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 
+	pb "github.com/styxx3542/tictactoe/gameService"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	pb "github.com/styxx3542/tictactoe/gameService"
 )
 
-func getMoveFromTerminal() pb.MoveRequest {
-	reader := bufio.NewReader(os.Stdin)
+func getMoveRequest(reader *bufio.Reader, id string, state *pb.BoardState) *pb.MoveRequest {
+	// get move from terminal
 	for {
-		fmt.Print("Enter row and column (separated by space): ")
+		fmt.Print("\nEnter row and column (separated by space): ")
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 		coordinates := strings.Split(input, " ")
+
 		if len(coordinates) != 2 {
 			fmt.Println("Invalid input. Please enter row and column separated by space.")
 			continue
 		}
+
 		row, err1 := strconv.Atoi(coordinates[0])
 		column, err2 := strconv.Atoi(coordinates[1])
-		if err1 != nil || err2 != nil || row < 0 || row > 2 || column < 0 || column > 2 {
-			fmt.Println("Invalid input. Please enter valid row and column numbers (0, 1, or 2).")
+
+		if err1 != nil || err2 != nil {
+			fmt.Println("Invalid input. Please enter row and column as integers.")
 			continue
 		}
-		fmt.Print("Enter player id (X or O): ")
-		input, _ = reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-		return pb.MoveRequest{
-			PlayerId: input,
-			Row:      int32(row),
-			Column:   int32(column),
+		if !validateMove(row, column,state) {
+			fmt.Println("Invalid move. Please try again.")
+			continue
 		}
+
+		return &pb.MoveRequest{PlayerId: id, Row: int32(row), Column: int32(column)}
 	}
 }
 
-func getMoveRequest() *pb.MoveRequest {
-	// get move from terminal
-	moveRequest := getMoveFromTerminal()
-	return &moveRequest
+func validateMove(row int, column int, boardState *pb.BoardState) bool {
+	if row < 0 || row > 2 || column < 0 || column > 2 {
+		return false
+	}
+
+	if boardState.Board[row*3+column] != "" {
+		return false
+	}
+
+	return true
 }
 
-func displayMoveResponse(response *pb.MoveResponse, err error) {
-	if err != nil {
-		log.Fatalf("could not make move: %v", err)
+func displayBoardState(response *pb.BoardState) {
+	if response.GetMessage() == "Invalid move" {
+		fmt.Println("Invalid move. Please try again.")
+		return
 	}
+
 	for row := 0; row < 3; row++ {
 		for column := 0; column < 3; column++ {
-			fmt.Printf("%s ", response.BoardState[row*3+column])
+			fmt.Printf(" %s ", response.Board[row*3+column])
+			if column < 2 {
+				fmt.Print("|")
+			}
 		}
-		fmt.Println()
+		if row < 2 {
+			fmt.Println("\n---------")
+		}
 	}
 }
 
@@ -72,13 +86,49 @@ func main() {
 	// Create a gRPC client instance
 	client := pb.NewTicTacToeServiceClient(conn)
 
-	// Example: Make a move using the gRPC client
+	// Start the PlayStream RPC
+	stream, err := client.PlayStream(context.Background())
+	if err != nil {
+		log.Fatalf("could not start game: %v", err)
+	}
+	fmt.Println("Client stream started")
+
+	// Receive the client's ID from the server
+	clientStream, err := stream.Recv()
+	if err != nil {
+		log.Fatalf("could not receive client ID: %v", err)
+	}
+	id := clientStream.GetClientId()
+	fmt.Printf("Your client ID is: %s\n", id)
+
+	reader := bufio.NewReader(os.Stdin)
+
+	// Game loop
 	for {
-		response, err := client.MakeMove(context.Background(), getMoveRequest())
-		displayMoveResponse(response, err)
-		if response.GetMessage() == "Game over: Draw" || response.GetMessage() == "Game over: Player X wins" || response.GetMessage() == "Game over: Player O wins" {
-			log.Println(response.GetMessage())
+		// Get the state from the server
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			// Server has closed the stream
 			break
 		}
+		if err != nil {
+			log.Fatalf("could not receive response: %v", err)
+		}
+
+		// Display the state
+		displayBoardState(resp.GetBoardState())
+
+		// Check if the game is over
+		if resp.GetBoardState().GetGameOver() {
+			log.Println(resp.GetBoardState().GetMessage())
+			break
+		}
+
+		moveReq := getMoveRequest(reader, id, resp.GetBoardState())
+		if err := stream.Send(&pb.PlayStreamRequest{MoveRequest: moveReq}); err != nil {
+			log.Fatalf("could not send move: %v", err)
+		}
+
+		// Receive the response from the server
 	}
 }
