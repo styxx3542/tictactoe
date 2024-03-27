@@ -77,7 +77,8 @@ func displayBoardState(response *pb.BoardState) {
 
 func main() {
 	// Create a gRPC client connection
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	serverAddr := "localhost:" + os.Args[1] 
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("could not connect: %v", err)
 	}

@@ -4,7 +4,7 @@ import (
 	"log"
 	"net"
 	"sync"
-
+	"os"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -215,19 +215,27 @@ func (s *server) processClientMoves(client *Client) error {
 func main() {
 	// Create a gRPC server instance
 	grpcServer := grpc.NewServer()
+	serverPort := os.Args[1]
 
 	// Register the TicTacToeService server with the gRPC server
 	s := &server{}
 	pb.RegisterTicTacToeServiceServer(grpcServer, s)
+	file, err := os.OpenFile("server.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal("Failed to open log file:", err)
+	}
+	defer file.Close()
 
+	// Set the log output to the custom log file
+	log.SetOutput(file)
 	// Listen for incoming connections
-	lis, err := net.Listen("tcp", ":50051")
+	lis, err := net.Listen("tcp", ":"+serverPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
 	// Start the gRPC server
-	log.Println("Starting gRPC server...")
+	log.Println("Starting gRPC server on port", serverPort)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

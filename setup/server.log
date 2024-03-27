@@ -1,0 +1,15 @@
+2024/03/27 11:23:28 Starting gRPC server...
+2024/03/27 11:27:19 Starting gRPC server...
+2024/03/27 11:28:55 Starting gRPC server...
+2024/03/27 11:30:03 Starting gRPC server on port 58369
+2024/03/27 11:31:43 Starting gRPC server on port 59453
+2024/03/27 11:33:32 Starting gRPC server on port 58216
+2024/03/27 11:33:32 Client connected
+2024/03/27 11:33:32 Client connected
+2024/03/27 11:33:32 Game started
+2024/03/27 11:33:42 Player X made a move at row 0, column 0
+2024/03/27 11:33:47 Player O made a move at row 1, column 1
+2024/03/27 11:33:51 Player X made a move at row 0, column 1
+2024/03/27 11:34:08 Player O made a move at row 1, column 0
+2024/03/27 11:34:13 Player X made a move at row 0, column 2
+2024/03/27 11:34:13 Game finished
